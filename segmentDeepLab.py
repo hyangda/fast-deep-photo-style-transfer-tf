@@ -165,14 +165,11 @@ FULL_COLOR_MAP = label_to_color_image(FULL_LABEL_MAP)
 
 # %% Load pretrained model
 
-# Using mobilenetv2, trained on COCO and VOC 2012
-# TODO: retrain on ADE20K, interior objects subset
-MODEL_NAME = 'mobilenetv2_coco_voctrainaug'  # @param ['mobilenetv2_coco_voctrainaug', 'mobilenetv2_coco_voctrainval', 'xception_coco_voctrainaug', 'xception_coco_voctrainval']
-
-model_path = os.path.join(model_dir, 'deeplab_model.tar.gz')
-
-MODEL = DeepLabModel(model_path)
-print('DeepLab model %s loaded successfully!' % MODEL_NAME)
+#model_path = os.path.join(opts.model_dir, 'deeplab_model.tar.gz')
+def loadModel(opts):
+    MODEL = DeepLabModel(opts.model_path)
+    print('DeepLab model %s loaded successfully!' % opts.model_path)
+    return MODEL
 
 # %% Visualization functions
 
@@ -201,33 +198,38 @@ print('DeepLab model %s loaded successfully!' % MODEL_NAME)
 #  vis_segmentation(resized_im, seg_map)
 #  return(resized_im, seg_map)
 
-def run_visualization_local(options):
+def run_visualization_local(opts, imagePath, imageName, MODEL):
   """Inferences DeepLab model and visualizes result."""
   try:
 #    jpeg_str = f.read()
-    original_im = Image.open(options.inputFile)
+    original_im = Image.open(imagePath)
   except IOError:
-    print('Cannot retrieve image. Please check path: ' + options.inputName)
+    print('Cannot retrieve image. Please check path: ' + imagePath)
     return
 
-  print('running deeplab on image %s...' % options.inputName)
+  print('running deeplab on image %s...' % imageName)
   resized_im, seg_map = MODEL.run(original_im)
 
   # Save
   type(resized_im)
-  resized_im.save(options.resized_dir + options.inputName)
+  resized_im.save(opts.resized_dir + imageName)
   type(seg_map)
   segIm = Image.fromarray((seg_map * 255).astype('uint8')) # Temporary binary classification
-  segIm.save(options.seg_dir + options.inputName)
+  segIm.save(opts.seg_dir + imageName)
   
   # Visualize
   vis_segmentation(resized_im, seg_map)
 # %% Main
-def main(options):
-
+def main(opts):
+    
+    # Using mobilenetv2, trained on COCO and VOC 2012
+    # TODO: retrain on ADE20K, interior objects subset
+    #MODEL_NAME = 'mobilenetv2_coco_voctrainaug'  # @param ['mobilenetv2_coco_voctrainaug', 'mobilenetv2_coco_voctrainval', 'xception_coco_voctrainaug', 'xception_coco_voctrainval']
+    MODEL = loadModel(opts)
+    
     # Run visualization and save preprocessed input and style images (resized, segmentation maps)
-    run_visualization_local(options.inputFile, options.inputName)
-    run_visualization_local(options.styleFile, options.styleName)
+    run_visualization_local(opts, opts.in_path, opts.inputFileName, MODEL)
+    run_visualization_local(opts, opts.style_path, opts.styleFileName, MODEL)
 
 if __name__ == '__main__':
     main()
