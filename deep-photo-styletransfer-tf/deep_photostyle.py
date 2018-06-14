@@ -31,8 +31,10 @@ parser.add_argument("--print_iter",         dest='print_iter',          nargs='?
 # Note the result might not be smooth enough since not applying smooth for temp result
 parser.add_argument("--save_iter",          dest='save_iter',           nargs='?', type=int,
                     help='save temporary result per iterations', default=100)
-parser.add_argument("--lbfgs",              dest='lbfgs',               nargs='?',
-                    help="True=lbfgs, False=Adam", default=True)
+#parser.add_argument("--lbfgs",              dest='lbfgs',               nargs='?',
+#                    help="True=lbfgs, False=Adam", default=True)
+parser.add_argument('--lbfgs', dest='lbfgs', action='store_true',
+                    help="True=lbfgs, False=Adam (default)", default=False)
 
 # Weight Options
 parser.add_argument("--content_weight",     dest='content_weight',      nargs='?', type=float,
@@ -47,8 +49,10 @@ parser.add_argument("--affine_weight",      dest='affine_weight',       nargs='?
 # Style Options
 parser.add_argument("--style_option",       dest='style_option',        nargs='?', type=int,
                     help="0=non-Matting, 1=only Matting, 2=first non-Matting, then Matting", default=0)
-parser.add_argument("--apply_smooth",       dest='apply_smooth',        nargs='?',
-                    help="if apply local affine smooth", default=True)
+#parser.add_argument("--apply_smooth",       dest='apply_smooth',        nargs='?',
+#                    help="if apply local affine smooth", default=True)
+parser.add_argument('--apply_smooth', dest='apply_smooth', action='store_true',
+                    help="True=Local affine smooth, False=Nothing (false)", default=False)
 
 # Smoothing Argument
 parser.add_argument("--f_radius",           dest='f_radius',            nargs='?', type=int,

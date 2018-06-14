@@ -12,6 +12,9 @@ import fst
 from fast_style_transfer.src.utils import exists
 from subprocess import call
 
+# Profile slow deep photo style transfer
+import cProfile
+
 # !!! Notes from Matt RE: licenses !!!
 # 3 main licenses: apache, mit, gnu (!!! need to ask for express permissions), add docstring in each function citing repo
 
@@ -19,13 +22,13 @@ from subprocess import call
 
 #%% Define defaults
 main_dir = '/Users/hyang/Work/Insight/fast-deep-photo-style-transfer-tf/'
-model_path = main_dir + 'deeplab/models/deeplab_model.tar.gz'
+model_path = os.path.join(main_dir, 'deeplab/models/deeplab_model.tar.gz')
 # Default folders for DeepLab
-input_dir = main_dir + 'inputPhotos/'
-resized_dir = main_dir + 'resizedPhotos/'
-style_dir = main_dir + 'stylePhotos/'
-seg_dir = main_dir + 'segMaps/'
-output_dir = main_dir + 'outputPhotos/'
+input_dir = os.path.join(main_dir, 'inputPhotos/')
+resized_dir = os.path.join(main_dir, 'resizedPhotos/')
+style_dir = os.path.join(main_dir + 'stylePhotos/')
+seg_dir = os.path.join(main_dir + 'segMaps/')
+output_dir = os.path.join(main_dir + 'outputPhotos/')
 # Default folders for fast style transfer
 VGG_PATH = 'fast-style-transfer-tf/data/imagenet-vgg-verydeep-19.mat' # point to deep photo weights
 # FST options
@@ -115,6 +118,11 @@ def build_parser():
     parser.add_argument('--allow-different-dimensions', action='store_true',
                         dest='allow_different_dimensions', 
                         help='allow different image dimensions')
+    
+    # Deep photo style transfer (slow)
+    parser.add_argument('--slow', dest='slow', action='store_true',
+                        help='Original Luan approach (very slow)',
+                        default=False)
 
     return parser
 # %% Helper methods
@@ -131,7 +139,10 @@ def check_opts(opts):
     opts.inputFileName = opts.in_path.split('/')[-1]#.split('.')[0]
     opts.styleFileName = opts.style_path.split('/')[-1]#.split('.')[0]
     opts.checkpointName = opts.checkpoint_dir.split('/')[-1].split('.')[0]
-    opts.resized_path = opts.resized_dir + opts.inputFileName
+    opts.resized_path = os.path.join(opts.resized_dir, opts.inputFileName)
+    opts.resized_style_path = os.path.join(opts.resized_dir, opts.styleFileName)
+    opts.seg_path = os.path.join(opts.seg_dir + opts.inputFileName)
+    opts.seg_style_path = os.path.join(opts.seg_dir, opts.styleFileName)
     
     ensure_folders(input_dir)
     ensure_folders(resized_dir)
@@ -153,8 +164,6 @@ def _get_files(img_dir):
     """List all files in directory"""
     files = list_files(img_dir)
     return [os.path.join(img_dir,x) for x in files]
-
-def visualize_result(opts)
 
 # %% Pipeline for FST ONLY !!!!!!!!!!!!!!
 def main():
@@ -186,8 +195,23 @@ def main():
     # Call DeepLab auto-segmentation
     seg.main(opts)
     # Call Logan Engstrom's fast style transfer
-    fst.main(opts)
-    
+    if opts.slow:
+        print("CALLING SLOW DEEP PHOTO STYLE")
+        print("Slow: %s" % opts.slow)
+        cmd = ['python', '-m', 'cProfile', '-o', 'deepPhotoProfile_Adams' \
+        , 'deep-photo-styletransfer-tf/deep_photostyle.py', '--content_image_path' \
+        , opts.resized_path, '--style_image_path', opts.resized_style_path \
+        , '--content_seg_path', opts.seg_path, '--style_seg_path', opts.seg_style_path \
+        , '--style_option', '2', '--output_image', opts.out_path \
+        , '--max_iter', '20', '--save_iter', '5']
+        call(cmd)
+    else:
+        print("CALLING FAST STYLE TRANSFER")
+        fst.main(opts)
+#        python deep_photostyle.py --content_image_path ./test/input/resized_im.jpg
+#        --style_image_path ./test/style/resized_leopard.jpg --content_seg_path
+#        ./test/seg/seg_map.jpg --style_seg_path ./test/seg/seg_leopard.jpg --style_option 2
+
     call(['open' , opts.out_path])
     
     #python evaluate.py --checkpoint path/to/style/model.ckpt \
