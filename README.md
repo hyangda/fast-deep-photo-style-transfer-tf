@@ -13,7 +13,12 @@ python run_fpst.py --in-path inputPhotos/insightCorner.jpg
 ```
 
 `--in-path` Path to the input `image.jpg`
+
 `--style-path` Path to the style image `style.jpg`
+
 `--checkpoint-path` Path to checkpoint file for fast style transfer algorithm `style.ckpt`
+
 `out-path` Output filename `output.jpg`
+
 `--slow` Specifies deep photo style transfer algorithm. Default is `False`, which switches to fast style transfer.
+
