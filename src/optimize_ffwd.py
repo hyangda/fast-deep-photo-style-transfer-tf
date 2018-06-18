@@ -23,7 +23,7 @@ DEVICES = 'CUDA_VISIBLE_DEVICES'
 def optimize(content_targets, style_target, content_weight, style_weight,
              tv_weight, vgg_path, epochs=2, print_iterations=1000,
              batch_size=4, save_path='saver/fns.ckpt', slow=False,
-             learning_rate=1e-3, Matting=None, debug=False): # Added Matting Laplacian as input
+             learning_rate=1e-3, debug=False):
     if slow:
         batch_size = 1
     mod = len(content_targets) % batch_size
@@ -35,7 +35,9 @@ def optimize(content_targets, style_target, content_weight, style_weight,
 
     batch_shape = (batch_size,256,256,3)
     style_shape = (1,) + style_target.shape
-    print(style_shape)
+    indices_shape = (batch_size, 1623076, 2)
+    coo_shape = (batch_size, 1623076)
+    
 
     # precompute style features
     with tf.Graph().as_default(), tf.device('/cpu:0'), tf.Session() as sess:
@@ -52,6 +54,10 @@ def optimize(content_targets, style_target, content_weight, style_weight,
     with tf.Graph().as_default(), tf.Session() as sess:
         X_content = tf.placeholder(tf.float32, shape=batch_shape, name="X_content")
         X_pre = vgg.preprocess(X_content)
+        
+        # Load in Matting Laplacian variables
+        M_indices = tf.placeholder(tf.int64, shape=indices_shape, name="M_indices")
+        M_coo_data = tf.placeholder(tf.float32, shape=coo_shape, name="M_coo_data")
 
         # precompute content features
         content_features = {}
@@ -94,11 +100,25 @@ def optimize(content_targets, style_target, content_weight, style_weight,
         y_tv = tf.nn.l2_loss(preds[:,1:,:,:] - preds[:,:batch_shape[1]-1,:,:])
         x_tv = tf.nn.l2_loss(preds[:,:,1:,:] - preds[:,:,:batch_shape[2]-1,:])
         tv_loss = tv_weight*2*(x_tv/tv_x_size + y_tv/tv_y_size)/batch_size
+
+        # Photorealistic regularization term
+        # NOTE TO SELF: Add flag here to include photorealism regularization or not
+        """ Modified from affine_loss in photo_style.py from
+        LouieYang's Deep Photo Style Transfer
+        https://github.com/LouieYang/deep-photo-styletransfer-tf
+        """
+        photo_loss = 0.0
+        for j in range(batch_size):
+#            X_content_norm = X_content[j] / 255.
+            for Vc in tf.unstack(preds[j], axis=-1):
+                Vc_ravel = tf.reshape(tf.transpose(Vc), [-1])
+                Matting = tf.SparseTensor(M_indices[j], M_coo_data[j], (65536, 65536))
+                photo_loss += tf.matmul(tf.expand_dims(Vc_ravel, 0), tf.sparse_tensor_dense_matmul(Matting, tf.expand_dims(Vc_ravel, -1)))/batch_size
     
-        # Total FST loss function
-        fst_loss = content_loss + style_loss + tv_loss
-        loss = fst_loss
-        # overall loss
+        # Total FPST loss function
+        loss = content_loss + style_loss + tv_loss + photo_loss
+
+        # Minimze total loss using Adam
         train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
         sess.run(tf.global_variables_initializer())
         import random
@@ -112,31 +132,23 @@ def optimize(content_targets, style_target, content_weight, style_weight,
                 curr = iterations * batch_size
                 step = curr + batch_size
                 X_batch = np.zeros(batch_shape, dtype=np.float32)
+                indices = np.zeros(indices_shape, dtype=np.int32) # Temporary, number of nonzero elements in sparse array
+                coo_data = np.zeros(coo_shape, dtype=np.float64) # Temporary, size is 256**2, 256**2
+                
                 for j, img_p in enumerate(content_targets[curr:step]):
                    X_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32)
-                   # Photorealistic regularization term
-                   """ Modified from affine_loss in photo_style.py from
-                   LouieYang's Deep Photo Style Transfer """
-                   photo_loss = 0.0
-                   X_content_norm = X_batch[j] / 255.
-        #           X_content_norm_float = tf.unstack(X_content_norm, axis=0)[0].eval(feed_dict = {X_content:X_batch})
-                   for Vc in tf.unstack(X_content_norm, axis=-1):
-                       Vc_ravel = tf.reshape(tf.transpose(Vc), [-1])
-        #               Matting = tf.to_float(getLaplacian(X_content_norm_float))
-                       Matting = tf.to_float(getLaplacian(X_batch[j]))
-                       photo_loss += tf.matmul(tf.expand_dims(Vc_ravel, 0), tf.sparse_tensor_dense_matmul(Matting, tf.expand_dims(Vc_ravel, -1)))/batch_size
-                       print(photo_loss)
+                   indices[j], coo_data[j] = getLaplacian(X_batch[j])
+#                   Matting = tf.to_float(getLaplacian(X_content_norm))
                        
                 iterations += 1
                 assert X_batch.shape[0] == batch_size
     
                 feed_dict = {
-                   X_content:X_batch
+                   X_content:X_batch,
+                   M_indices:indices.astype('int64'),
+                   M_coo_data:coo_data.astype('float32')
                 }
-                loss = fst_loss + photo_loss
-                # Moved training step here so we can feed raw image in each time
-                train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-#                sess.run(tf.global_variables_initializer())
+
                 train_step.run(feed_dict=feed_dict)
                 end_time = time.time()
                 delta_time = end_time - start_time
@@ -150,7 +162,9 @@ def optimize(content_targets, style_target, content_weight, style_weight,
                 if should_print:
                     to_get = [style_loss, content_loss, tv_loss, photo_loss, loss, preds]
                     test_feed_dict = {
-                       X_content:X_batch
+                       X_content:X_batch,
+                       M_indices:indices.astype('int64'),
+                       M_coo_data:coo_data.astype('float32')
                     }
 
                     tup = sess.run(to_get, feed_dict = test_feed_dict)
