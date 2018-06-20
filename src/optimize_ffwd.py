@@ -1,10 +1,18 @@
 from __future__ import print_function
 import functools
 import vgg, pdb, time
-import tensorflow as tf, numpy as np, os
+import tensorflow as tf, numpy as np, os, sys
 import transform
 from utils import get_img
 from closed_form_matting import getLaplacian
+
+# Hack to load in segmentDeepLab with testing directory structure
+# TO DO: Move segmentDeepLab into src?
+currentdir = os.path.dirname(os.path.abspath(__file__))
+parentdir = os.path.dirname(os.path.dirname(currentdir))
+sys.path.insert(0,parentdir) 
+
+import segmentDeepLab as seg
 
 """
 Modified from optimization for Fast Style Transfer algorithm authored by Logan Engstrom:
@@ -23,9 +31,10 @@ CONTENT_LAYER = 'relu4_2'
 DEVICES = 'CUDA_VISIBLE_DEVICES'
 
 # np arr, np arr
-def optimize(content_targets, style_target, content_segs, style_seg,
+def optimize(content_targets, style_target, style_seg,
              content_weight, style_weight, tv_weight, photo_weight,
-             vgg_path, epochs=2, print_iterations=1000,
+             vgg_path, deeplab_path, resized_dir, seg_dir,
+             epochs=2, print_iterations=1000,
              batch_size=4, save_path='saver/fns.ckpt', slow=False,
              learning_rate=1e-3, debug=False):
     
@@ -112,7 +121,7 @@ def optimize(content_targets, style_target, content_segs, style_seg,
         net = vgg.net(vgg_path, style_image_pre)
         style_pre = np.array([style_target]) # This was called by get_image(), is a uint8 image
         # Below loop computes G_l[S], can compute masks M_l,c[S] here.
-        style_masks = load_seg((style_image / 255.), style_shape[1], style_shape[2]) # Normalized by 255, check.
+        style_masks = load_seg(np.expand_dims((style_seg / 255.), 0), style_shape[1], style_shape[2]) # Normalized by 255, check.
         print('STYLE MASKS IN TF PRECOMPUTE')
         print(style_masks)
         for layer in STYLE_LAYERS:
@@ -254,20 +263,20 @@ def optimize(content_targets, style_target, content_segs, style_seg,
                 curr = iterations * batch_size
                 step = curr + batch_size
                 X_batch = np.zeros(batch_shape, dtype=np.float32)
+                Seg_batch = np.zeros(batch_shape, dtype=np.float32)
                 indices = np.zeros(indices_shape, dtype=np.int32) # Temporary, number of nonzero elements in sparse array
                 coo_data = np.zeros(coo_shape, dtype=np.float64) # Temporary, size is 256**2, 256**2
                 
                 # Load content images and compute Matting Laplacian for each
                 for j, img_p in enumerate(content_targets[curr:step]):
-                   X_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32)
-                   indices[j], coo_data[j] = getLaplacian(X_batch[j])
-#                   Matting = tf.to_float(getLaplacian(X_content_norm))
+                   X_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32) # Load input images
+                   # Run DeepLab here
+                   img_fname = img_p.split('/')[-1]
+                   if not os.path.exists(seg_dir+img_fname):
+                       seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
+                   Seg_batch[j] = get_img((seg_dir + img_fname), (256,256,3)).astype(np.float32)
+                   indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
                 
-                Seg_batch = np.zeros(batch_shape, dtype=np.float32)
-                # Load segmentation masks
-                for j, img_p in enumerate(content_segs[curr:step]):
-                   Seg_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32)
-                   
                 iterations += 1
                 assert X_batch.shape[0] == batch_size
     

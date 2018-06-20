@@ -166,9 +166,9 @@ FULL_COLOR_MAP = label_to_color_image(FULL_LABEL_MAP)
 # %% Load pretrained model
 
 #model_path = os.path.join(opts.model_dir, 'deeplab_model.tar.gz')
-def loadModel(opts):
-    MODEL = DeepLabModel(opts.model_path)
-    print('DeepLab model %s loaded successfully!' % opts.model_path)
+def loadModel(model_path):
+    MODEL = DeepLabModel(model_path)
+    print('DeepLab model %s loaded successfully!' % model_path)
     return MODEL
 
 # %% Visualization functions
@@ -198,7 +198,7 @@ def loadModel(opts):
 #  vis_segmentation(resized_im, seg_map)
 #  return(resized_im, seg_map)
 
-def run_visualization_local(opts, imagePath, imageName, MODEL):
+def run_visualization_local(imagePath, imageName, resized_dir, seg_dir, MODEL):
   """Inferences DeepLab model and visualizes result."""
   try:
 #    jpeg_str = f.read()
@@ -212,24 +212,26 @@ def run_visualization_local(opts, imagePath, imageName, MODEL):
 
   # Save
   type(resized_im)
-  resized_im.save(opts.resized_dir + imageName)
+  resized_im.save(resized_dir + imageName)
   type(seg_map)
   segIm = Image.fromarray((seg_map * 255).astype('uint8')) # Temporary binary classification
-  segIm.save(opts.seg_dir + imageName)
+  segIm.save(seg_dir + imageName)
   
   # Visualize
-  vis_segmentation(resized_im, seg_map)
+  # TO DO: Trigger this from a flag
+#  vis_segmentation(resized_im, seg_map)
 # %% Main
-def main(opts):
+def main(model_path, target_dir, target_fname, resized_dir, seg_dir):
     
     # Using mobilenetv2, trained on COCO and VOC 2012
     # TODO: retrain on ADE20K, interior objects subset
     #MODEL_NAME = 'mobilenetv2_coco_voctrainaug'  # @param ['mobilenetv2_coco_voctrainaug', 'mobilenetv2_coco_voctrainval', 'xception_coco_voctrainaug', 'xception_coco_voctrainval']
-    MODEL = loadModel(opts)
+    MODEL = loadModel(model_path)
     
     # Run visualization and save preprocessed input and style images (resized, segmentation maps)
-    run_visualization_local(opts, opts.in_path, opts.inputFileName, MODEL)
-    run_visualization_local(opts, opts.style_path, opts.styleFileName, MODEL)
+    run_visualization_local(target_dir, target_fname, resized_dir, seg_dir, MODEL)
+#    run_visualization_local(opts, opts.in_path, opts.inputFileName, MODEL)
+#    run_visualization_local(opts, opts.style_path, opts.styleFileName, MODEL)
 
 if __name__ == '__main__':
     main()

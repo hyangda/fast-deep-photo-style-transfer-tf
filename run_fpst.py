@@ -22,7 +22,7 @@ import cProfile
 
 #%% Define defaults
 main_dir = '/Users/hyang/Work/Insight/fast-deep-photo-style-transfer-tf/'
-model_path = os.path.join(main_dir, 'deeplab/models/deeplab_model.tar.gz')
+deeplab_path = os.path.join(main_dir, 'deeplab/models/deeplab_model.tar.gz')
 # Default folders for DeepLab
 input_dir = os.path.join(main_dir, 'inputPhotos/')
 resized_dir = os.path.join(main_dir, 'resizedPhotos/')
@@ -88,18 +88,18 @@ def build_parser():
                         metavar='OUT_PATH', required=True)
     
 # Intermediate file save directories
-    parser.add_argument('--resized_dir', type=str,
+    parser.add_argument('--resized-dir', type=str,
                         dest='resized_dir', help='Resized image directory',
                         metavar='RESIZED_DIR', default=resized_dir)
 
-    parser.add_argument('--seg_dir', type=str,
+    parser.add_argument('--seg-dir', type=str,
                         dest='seg_dir', help='Segmented image directory',
                         metavar='SEG_DIR', default=seg_dir)
 
 # Deep Lab
-    parser.add_argument('--model-path', type=str,
-                        dest='model_path', help='Path to DeepLab model',
-                        metavar='MODEL_path', default=model_path)
+    parser.add_argument('--deeplab-path', type=str,
+                        dest='deeplab_path', help='Path to DeepLab model',
+                        metavar='DEEPLAB_path', default=deeplab_path)
 
 # Fast style transfer
     parser.add_argument('--checkpoint-path', type=str,
@@ -136,6 +136,10 @@ def ensure_folders(directory):
             raise
 
 def check_opts(opts):
+    opts.resized_dir = os.path.abspath(opts.resized_dir)
+    opts.seg_dir = os.path.abspath(opts.seg_dir)
+    opts.deeplab_path = os.path.abspath(opts.deeplab_path)
+    
     opts.inputFileName = opts.in_path.split('/')[-1]#.split('.')[0]
     opts.styleFileName = opts.style_path.split('/')[-1]#.split('.')[0]
     opts.checkpointName = opts.checkpoint_dir.split('/')[-1].split('.')[0]
@@ -174,8 +178,10 @@ def main():
     # Call DeepLab auto-segmentation
     #if segment
     
-    seg.main(opts)
-    
+###################################    seg.main(opts)
+
+    seg.main(opts.deeplab_path, opts.in_path, opts.inputFileName, opts.resized_dir, opts.seg_dir)
+    seg.main(opts.deeplab_path, opts.style_path, opts.styleFileName, opts.resized_dir, opts.seg_dir)
     # Call Logan Engstrom's fast style transfer
     #if train:
     
