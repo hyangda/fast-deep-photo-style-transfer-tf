@@ -272,9 +272,9 @@ def optimize(content_targets, style_target, style_seg,
                    X_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32) # Load input images
                    # Run DeepLab here
                    img_fname = img_p.split('/')[-1]
-                   if not os.path.exists(seg_dir+img_fname):
+                   if not os.path.exists(os.path.join(seg_dir, img_fname)):
                        seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
-                   Seg_batch[j] = get_img((seg_dir + img_fname), (256,256,3)).astype(np.float32)
+                   Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (256,256,3)).astype(np.float32)
                    indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
                 
                 iterations += 1

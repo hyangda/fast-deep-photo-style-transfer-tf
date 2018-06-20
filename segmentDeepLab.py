@@ -212,10 +212,10 @@ def run_visualization_local(imagePath, imageName, resized_dir, seg_dir, MODEL):
 
   # Save
   type(resized_im)
-  resized_im.save(resized_dir + imageName)
+  resized_im.save(os.path.join(resized_dir, imageName))
   type(seg_map)
   segIm = Image.fromarray((seg_map * 255).astype('uint8')) # Temporary binary classification
-  segIm.save(seg_dir + imageName)
+  segIm.save(os.path.join(seg_dir, imageName))
   
   # Visualize
   # TO DO: Trigger this from a flag
