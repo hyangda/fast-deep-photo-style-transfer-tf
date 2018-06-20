@@ -21,7 +21,7 @@ import cProfile
 # Main script to run fast deep photo style transfer
 
 #%% Define defaults
-main_dir = '/Users/hyang/Work/Insight/fast-deep-photo-style-transfer-tf/'
+main_dir = os.path.dirname(__file__)
 deeplab_path = os.path.join(main_dir, 'deeplab/models/deeplab_model.tar.gz')
 # Default folders for DeepLab
 input_dir = os.path.join(main_dir, 'inputPhotos/')

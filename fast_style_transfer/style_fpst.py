@@ -107,6 +107,10 @@ def build_parser():
     parser.add_argument('--seg-dir', type=str,
                         dest='seg_dir', help='Segmented image directory',
                         metavar='SEG_DIR', default=False)
+    
+    parser.add_argument('--matting-dir', type=str,
+                        dest='matting_dir', help='Matting Laplacian save directory',
+                        metavar='MATTING_DIR', default=False)
 
 # Deep Lab
     parser.add_argument('--deeplab-path', type=str,
@@ -181,7 +185,8 @@ def main():
         options.vgg_path,
         options.deeplab_path,
         options.resized_dir, # Batch image resized folder (intermediate from deeplab)
-        options.seg_dir # Batch image segmentation folder (intermediate from deeplab)
+        options.seg_dir, # Batch image segmentation folder (intermediate from deeplab)
+        options.matting_dir
     ]
 
     for preds, losses, i, epoch in optimize(*args, **kwargs):

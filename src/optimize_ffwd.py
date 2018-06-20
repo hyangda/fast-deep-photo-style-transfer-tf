@@ -33,7 +33,7 @@ DEVICES = 'CUDA_VISIBLE_DEVICES'
 # np arr, np arr
 def optimize(content_targets, style_target, style_seg,
              content_weight, style_weight, tv_weight, photo_weight,
-             vgg_path, deeplab_path, resized_dir, seg_dir,
+             vgg_path, deeplab_path, resized_dir, seg_dir, matting_dir,
              epochs=2, print_iterations=1000,
              batch_size=4, save_path='saver/fns.ckpt', slow=False,
              learning_rate=1e-3, debug=False):
@@ -275,7 +275,16 @@ def optimize(content_targets, style_target, style_seg,
                    if not os.path.exists(os.path.join(seg_dir, img_fname)):
                        seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
                    Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (256,256,3)).astype(np.float32)
-                   indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
+                   # TO DO STORE THIS STUFF!!!
+                   if not os.path.exists(os.path.join(matting_dir, img_fname, '_indices.npy')):
+                       indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
+                       np.save(os.path.join(matting_dir, img_fname, '_indices.npy'), indices[j])
+                       np.save(os.path.join(matting_dir, img_fname, '_coo.npy'), coo_data[j])
+                   else:
+                       indices[j] = np.load(os.path.join(matting_dir, img_fname, '_indices.npy'))
+                       coo_data[j] = np.load(os.path.join(matting_dir, img_fname, '_coo.npy'))
+                           
+                           
                 
                 iterations += 1
                 assert X_batch.shape[0] == batch_size
