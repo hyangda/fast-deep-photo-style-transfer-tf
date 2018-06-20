@@ -170,31 +170,19 @@ def main():
     parser = build_parser()
     opts = parser.parse_args()
     opts = check_opts(opts)
-
-    # Temporary option testing
-    #parser = ArgumentParser()
-    #opts = parser.parse_args()
-    #
-    ## Input directories
-    #opts.model_path = model_path
-    #opts.inputName = 'insightCorner.jpg'
-    #opts.styleName = 'leopard.jpg'
-    #opts.checkpointName = 'udnie'
-    #opts.checkpoint_dir = 'checkpoints/udnie.ckpt'
-    #opts.input_dir = main_dir + 'inputPhotos/'
-    #opts.resized_dir = main_dir + 'resizedPhotos/'
-    #opts.style_dir = main_dir + 'stylePhotos/'
-    #opts.seg_dir = main_dir + 'segMaps/'
-    #opts.output_dir = main_dir + 'outputPhotos/'
-    #opts.in_path = opts.input_dir + opts.inputName
-    #opts.resized_path = opts.resized_dir + opts.inputName
-    #opts.style_path = opts.style_dir + opts.styleName
-    #opts.out_path = opts.output_dir + opts.checkpointName + '_' + opts.inputName
-    #opts.device = '/gpu:0'
     
     # Call DeepLab auto-segmentation
+    #if segment
+    
     seg.main(opts)
+    
     # Call Logan Engstrom's fast style transfer
+    #if train:
+    
+    ### !!!call training function here
+    
+    #else:
+    
     if opts.slow:
         print("CALLING SLOW DEEP PHOTO STYLE")
         print("Slow: %s" % opts.slow)
@@ -203,7 +191,7 @@ def main():
         , opts.resized_path, '--style_image_path', opts.resized_style_path \
         , '--content_seg_path', opts.seg_path, '--style_seg_path', opts.seg_style_path \
         , '--style_option', '2', '--output_image', opts.out_path \
-        , '--max_iter', '20', '--save_iter', '5']
+        , '--max_iter', '100', '--save_iter', '5', '--lbfgs']
         call(cmd)
     else:
         print("CALLING FAST STYLE TRANSFER")
