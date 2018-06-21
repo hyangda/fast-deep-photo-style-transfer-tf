@@ -9,7 +9,7 @@ Created on Thu Jun 21 13:36:19 2018
 import numpy as np
 import os
 from PIL import Image
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 # %% Function definitions
 def list_files(in_path):
