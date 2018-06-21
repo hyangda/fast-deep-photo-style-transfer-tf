@@ -276,13 +276,13 @@ def optimize(content_targets, style_target, style_seg,
                        seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
                    Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (256,256,3)).astype(np.float32)
                    # TO DO STORE THIS STUFF!!!
-                   if not os.path.exists(os.path.join(matting_dir, img_fname, '_indices.npy')):
+                   if not os.path.exists(os.path.join(matting_dir, img_fname + '_indices.npy')):
                        indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
-                       np.save(os.path.join(matting_dir, img_fname, '_indices.npy'), indices[j])
-                       np.save(os.path.join(matting_dir, img_fname, '_coo.npy'), coo_data[j])
+                       np.save(os.path.join(matting_dir, img_fname + '_indices.npy'), indices[j])
+                       np.save(os.path.join(matting_dir, img_fname + '_coo.npy'), coo_data[j])
                    else:
-                       indices[j] = np.load(os.path.join(matting_dir, img_fname, '_indices.npy'))
-                       coo_data[j] = np.load(os.path.join(matting_dir, img_fname, '_coo.npy'))
+                       indices[j] = np.load(os.path.join(matting_dir, img_fname + '_indices.npy'))
+                       coo_data[j] = np.load(os.path.join(matting_dir, img_fname + '_coo.npy'))
                            
                            
                 
