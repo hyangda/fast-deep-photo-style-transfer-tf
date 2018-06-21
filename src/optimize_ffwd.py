@@ -109,10 +109,19 @@ def optimize(content_targets, style_target, style_seg,
 
     style_features = {}
     # Define shapes
-    batch_shape = (batch_size,256,256,3) # batch size, height, width, channels
+    resize_height = 64
+    resize_width = 64
+    batch_shape = (batch_size,resize_height,resize_width,3) # batch size, height, width, channels
     style_shape = (1,) + style_target.shape # batch size = 1, h, w, c
-    indices_shape = (batch_size, 1623076, 2) # Temporary hardcode--dim doesn't change for 256x256 images
-    coo_shape = (batch_size, 1623076) # Temporary hardcode
+    if resize_height == 256:
+        nonZeros = 1623076
+    elif resize_height == 64:
+        nonZeros = 98596
+    else:
+        raise ValueError('Don\'t know what nonzero values should be for this size.')
+    
+    indices_shape = (batch_size, nonZeros, 2) # Temporary hardcode--dim doesn't change for 256x256 images
+    coo_shape = (batch_size, nonZeros) # Temporary hardcode
     
     # precompute style features for reference style image
     with tf.Graph().as_default(), tf.device('/cpu:0'), tf.Session() as sess:
@@ -167,7 +176,7 @@ def optimize(content_targets, style_target, style_seg,
             )
             preds_pre = preds
         else: # Image transformation network prediction
-            preds = transform.net(X_content/255.0)
+            preds = transform.net(X_content/255.0) # Start from transformed version of original image
             print("PREDS SHAPE")
             print(preds.get_shape)
             preds_pre = vgg.preprocess(preds)
@@ -269,12 +278,12 @@ def optimize(content_targets, style_target, style_seg,
                 
                 # Load content images and compute Matting Laplacian for each
                 for j, img_p in enumerate(content_targets[curr:step]):
-                   X_batch[j] = get_img(img_p, (256,256,3)).astype(np.float32) # Load input images
+                   X_batch[j] = get_img(img_p, (resize_height,resize_width,3)).astype(np.float32) # Load input images
                    # Run DeepLab here
                    img_fname = img_p.split('/')[-1]
                    if not os.path.exists(os.path.join(seg_dir, img_fname)):
                        seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
-                   Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (256,256,3)).astype(np.float32)
+                   Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (resize_height,resize_width,3)).astype(np.float32)
                    # TO DO STORE THIS STUFF!!!
                    if not os.path.exists(os.path.join(matting_dir, img_fname + '_indices.npy')):
                        indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
