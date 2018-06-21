@@ -122,6 +122,7 @@ def optimize(content_targets, style_target, style_seg,
     
     indices_shape = (batch_size, nonZeros, 2) # Temporary hardcode--dim doesn't change for 256x256 images
     coo_shape = (batch_size, nonZeros) # Temporary hardcode
+    mattingN = resize_height * resize_width
     
     # precompute style features for reference style image
     with tf.Graph().as_default(), tf.device('/cpu:0'), tf.Session() as sess:
@@ -251,7 +252,7 @@ def optimize(content_targets, style_target, style_seg,
 #            X_content_norm = X_content[j] / 255.
             for Vc in tf.unstack(preds[j], axis=-1): # Preds has already been normalized by 255. at this point
                 Vc_ravel = tf.reshape(tf.transpose(Vc), [-1])
-                Matting = tf.SparseTensor(M_indices[j], M_coo_data[j], (65536, 65536))
+                Matting = tf.SparseTensor(M_indices[j], M_coo_data[j], (mattingN, mattingN))
                 Lm = tf.matmul(tf.expand_dims(Vc_ravel, 0), tf.sparse_tensor_dense_matmul(Matting, tf.expand_dims(Vc_ravel, -1)))
                 photo_loss += photo_weight*Lm/(_tensor_size(Lm) * batch_size)
     
