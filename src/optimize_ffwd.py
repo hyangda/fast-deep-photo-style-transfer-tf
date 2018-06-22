@@ -26,6 +26,9 @@ Luan et al. (2017):
         https://github.com/LouieYang/deep-photo-styletransfer-tf
 """
 
+# Enable eager execution and save to file. May not be necessary with tensorboard.
+#tf.enable_eager_execution()
+
 STYLE_LAYERS = ('relu1_1', 'relu2_1', 'relu3_1', 'relu4_1', 'relu5_1')
 CONTENT_LAYER = 'relu4_2'
 DEVICES = 'CUDA_VISIBLE_DEVICES'
@@ -37,6 +40,12 @@ def optimize(content_targets, style_target, style_seg,
              epochs=2, print_iterations=1000,
              batch_size=4, save_path='saver/fns.ckpt', slow=False,
              learning_rate=1e-3, debug=False):
+    
+    log_dir_name = ('tensorboardLogs' + '_c' + str(content_weight) +
+                    '_s' + str(style_weight) + '_tv' + str(tv_weight) +
+                    '_p' + str(photo_weight) + '/')
+    if not os.path.exists(log_dir_name):
+        os.makedirs(log_dir_name)
     
     # Function to load segmentation masks
     """ TF implementation modified from Louie Yang's deep photo style transfer. """
@@ -259,8 +268,17 @@ def optimize(content_targets, style_target, style_seg,
         # Total FPST loss function
         loss = content_loss + style_loss + tv_loss + photo_loss
 
+        # Tensorboard variables
+        tf.summary.scalar('total_loss', loss)
+        tf.summary.scalar('style_loss', style_loss)
+        tf.summary.scalar('content_loss', content_loss)
+        tf.summary.scalar('tv_loss', tv_loss)
+        tf.summary.scalar('photo_loss', photo_loss)
+
         # Minimze total loss using Adam
         train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        tf.summary.scalar('learning_rate', train_step._lr)
+        mergedSummary = tf.summary.merge_all()
         sess.run(tf.global_variables_initializer())
         import random
         uid = random.randint(1, 100)
@@ -317,7 +335,7 @@ def optimize(content_targets, style_target, style_seg,
                 is_last = epoch == epochs - 1 and iterations * batch_size >= num_examples
                 should_print = is_print_iter or is_last
                 if should_print:
-                    to_get = [style_loss, content_loss, tv_loss, photo_loss, loss, preds]
+                    to_get = [style_loss, content_loss, tv_loss, photo_loss, loss, preds, mergedSummary]
                     test_feed_dict = {
                        X_content:X_batch,
                        Seg_content:Seg_batch,
@@ -326,8 +344,12 @@ def optimize(content_targets, style_target, style_seg,
                     }
 
                     tup = sess.run(to_get, feed_dict = test_feed_dict)
-                    _style_loss,_content_loss,_tv_loss, _photo_loss, _loss,_preds = tup
+                    _style_loss,_content_loss,_tv_loss, _photo_loss, _loss, _preds, _mergedSummary = tup
                     losses = (_style_loss, _content_loss, _tv_loss, _photo_loss, _loss)
+
+                    # Store tensorboard
+                    train_writer = tf.summary.FileWriter(log_dir_name, sess.graph)
+                    train_writer.add_summary(summary, iterations)
                     if slow:
                        _preds = vgg.unprocess(_preds)
                     else:
