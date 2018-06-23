@@ -214,7 +214,8 @@ def run_visualization_local(imagePath, imageName, resized_dir, seg_dir, MODEL):
   type(resized_im)
   resized_im.save(os.path.join(resized_dir, imageName))
   type(seg_map)
-  segIm = Image.fromarray((seg_map * 255).astype('uint8')) # Temporary binary classification
+  seg_map[seg_map > 1] = 255
+  segIm = Image.fromarray(seg_map.astype('uint8')) # Temporary binary classification
   segIm.save(os.path.join(seg_dir, imageName))
   
   # Visualize

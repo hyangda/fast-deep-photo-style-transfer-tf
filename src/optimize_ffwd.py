@@ -118,8 +118,8 @@ def optimize(content_targets, style_target, style_seg,
 
     style_features = {}
     # Define shapes
-    resize_height = 64
-    resize_width = 64
+    resize_height = 256
+    resize_width = 256
     batch_shape = (batch_size,resize_height,resize_width,3) # batch size, height, width, channels
     style_shape = (1,) + style_target.shape # batch size = 1, h, w, c
     if resize_height == 256:
@@ -269,16 +269,17 @@ def optimize(content_targets, style_target, style_seg,
         loss = content_loss + style_loss + tv_loss + photo_loss
 
         # Tensorboard variables
-        tf.summary.scalar('total_loss', loss)
-        tf.summary.scalar('style_loss', style_loss)
-        tf.summary.scalar('content_loss', content_loss)
-        tf.summary.scalar('tv_loss', tv_loss)
-        tf.summary.scalar('photo_loss', photo_loss)
+        #tf.summary.scalar('total_loss', loss[0][0])
+        #tf.summary.scalar('style_loss', style_loss)
+        #tf.summary.scalar('content_loss', content_loss)
+        #tf.summary.scalar('tv_loss', tv_loss)
+        #tf.summary.scalar('photo_loss', photo_loss[0][0])
 
         # Minimze total loss using Adam
-        train_step = tf.train.AdamOptimizer(learning_rate).minimize(loss)
-        tf.summary.scalar('learning_rate', train_step._lr)
-        mergedSummary = tf.summary.merge_all()
+        trainer = tf.train.AdamOptimizer(learning_rate)
+        train_step = trainer.minimize(loss)
+        #tf.summary.scalar('learning_rate', trainer._lr)
+        #mergedSummary = tf.summary.merge_all()
         sess.run(tf.global_variables_initializer())
         import random
         uid = random.randint(1, 100)
@@ -335,7 +336,7 @@ def optimize(content_targets, style_target, style_seg,
                 is_last = epoch == epochs - 1 and iterations * batch_size >= num_examples
                 should_print = is_print_iter or is_last
                 if should_print:
-                    to_get = [style_loss, content_loss, tv_loss, photo_loss, loss, preds, mergedSummary]
+                    to_get = [style_loss, content_loss, tv_loss, photo_loss, loss, preds]
                     test_feed_dict = {
                        X_content:X_batch,
                        Seg_content:Seg_batch,
@@ -344,12 +345,12 @@ def optimize(content_targets, style_target, style_seg,
                     }
 
                     tup = sess.run(to_get, feed_dict = test_feed_dict)
-                    _style_loss,_content_loss,_tv_loss, _photo_loss, _loss, _preds, _mergedSummary = tup
+                    _style_loss,_content_loss,_tv_loss, _photo_loss, _loss, _preds = tup
                     losses = (_style_loss, _content_loss, _tv_loss, _photo_loss, _loss)
 
                     # Store tensorboard
-                    train_writer = tf.summary.FileWriter(log_dir_name, sess.graph)
-                    train_writer.add_summary(summary, iterations)
+                    #train_writer = tf.summary.FileWriter(log_dir_name, sess.graph)
+                    #train_writer.add_summary(mergedSummary)
                     if slow:
                        _preds = vgg.unprocess(_preds)
                     else:
