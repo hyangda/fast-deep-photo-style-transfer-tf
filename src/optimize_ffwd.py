@@ -213,7 +213,7 @@ def optimize(content_targets, style_target, style_seg,
         style_losses = []
         # Tensorboard variables
         style_layer_count = -1 # Initialize
-        tb_batch_style = tf.zeros([len(STYLE_LAYERS), resize_height, resize_width, 1], tf.float32)
+        tb_batch_style = []
         for style_layer in STYLE_LAYERS:
             style_layer_count += 1
             layer = net[style_layer] # F[O]
@@ -235,8 +235,8 @@ def optimize(content_targets, style_target, style_seg,
                 style_gram = style_features[style_layer][c] # This is G_l,c[S], (Gram matrix computed in place), compute M_l,c[I] previously
                 style_loss_per_mask += 2 * tf.nn.l2_loss(grams - style_gram)/style_gram.size
                 # Tensorboard debug
-                if c == 0:
-                    tb_batch_style[style_layer_count] = grams
+                if c == 3: # White, foreground
+                    tb_batch_style.append(grams)
                 # HY TO DO: NORMALIZE BY MASK AVERAGE [THIS GIVES WEIGHTED AVERAGE OF MASKED IMAGES]
 #            feats = tf.reshape(layer, (bs, height * width, filters))
 #            feats_T = tf.transpose(feats, perm=[0,2,1])
@@ -249,7 +249,7 @@ def optimize(content_targets, style_target, style_seg,
             print(style_layer)
             print("Style layer: bs, height, width, filters")
             print(bs, height, width, filters)
-        tf.summary.image('Gram_matrices', tb_batch_style, bs)
+        tf.summary.image('Gram_matrices', tf.expand_dims(tf.stack(tb_batch_style), -1), bs)
     
         style_loss = style_weight * functools.reduce(tf.add, style_losses) / batch_size
     
