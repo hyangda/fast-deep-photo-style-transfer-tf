@@ -192,8 +192,8 @@ def optimize(content_targets, style_target, style_seg,
     
         net = vgg.net(vgg_path, preds_pre) # Preprocessed composite image
 
-        tf.summary.image('preds', preds)
-        tf.summary.image('X_content', X_content)
+        tf.summary.image('preds', preds, batch_size)
+        tf.summary.image('X_content', X_content, batch_size)
 
         # Content loss computation -- unchanged from Gatys et al. (2015)
         # net: Feature layers of output image [O]
@@ -211,11 +211,7 @@ def optimize(content_targets, style_target, style_seg,
         
         # Compute style losses G_l[O] for output composite image [O]
         style_losses = []
-        # Tensorboard variables
-        style_layer_count = -1 # Initialize
-        tb_batch_style = []
         for style_layer in STYLE_LAYERS:
-            style_layer_count += 1
             layer = net[style_layer] # F[O]
             bs, height, width, filters = map(lambda i:i.value,layer.get_shape())
             size = height * width * filters
@@ -234,9 +230,8 @@ def optimize(content_targets, style_target, style_seg,
                 grams = tf.matmul(feats_T, feats) / size # This is G_l,c[O], feed in input masks here M_l,c[I], and and loop over I input images
                 style_gram = style_features[style_layer][c] # This is G_l,c[S], (Gram matrix computed in place), compute M_l,c[I] previously
                 style_loss_per_mask += 2 * tf.nn.l2_loss(grams - style_gram)/style_gram.size
-                # Tensorboard debug
-                if c == 3: # White, foreground
-                    tb_batch_style.append(grams)
+                if (c == 3) and (style_layer == 'relu1_1'): # White, foreground
+                    tb_masks = input_mask_resized
                 # HY TO DO: NORMALIZE BY MASK AVERAGE [THIS GIVES WEIGHTED AVERAGE OF MASKED IMAGES]
 #            feats = tf.reshape(layer, (bs, height * width, filters))
 #            feats_T = tf.transpose(feats, perm=[0,2,1])
@@ -249,7 +244,7 @@ def optimize(content_targets, style_target, style_seg,
             print(style_layer)
             print("Style layer: bs, height, width, filters")
             print(bs, height, width, filters)
-        tf.summary.image('Gram_matrices', tf.expand_dims(tf.stack(tb_batch_style), -1), bs)
+        tf.summary.image('Batch_Masks', tb_masks, batch_size)
     
         style_loss = style_weight * functools.reduce(tf.add, style_losses) / batch_size
     
