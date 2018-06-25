@@ -161,7 +161,6 @@ def optimize(content_targets, style_target, style_seg,
 #            features = np.reshape(features, (-1, features.shape[3]))
 #            gram = np.matmul(features.T, features) / features.size
 #            style_features[layer] = gram # This is G_l[S]
-
     with tf.Graph().as_default(), tf.Session() as sess:
         # Content images in batch
         X_content = tf.placeholder(tf.float32, shape=batch_shape, name="X_content")
@@ -192,7 +191,10 @@ def optimize(content_targets, style_target, style_seg,
             preds_pre = vgg.preprocess(preds)
     
         net = vgg.net(vgg_path, preds_pre) # Preprocessed composite image
-        
+
+        tf.summary.image('preds', preds)
+        tf.summary.image('X_content', X_content)
+
         # Content loss computation -- unchanged from Gatys et al. (2015)
         # net: Feature layers of output image [O]
         # content_features: Feature layers of each image in batch [I]
