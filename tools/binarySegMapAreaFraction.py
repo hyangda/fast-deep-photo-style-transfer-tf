@@ -17,7 +17,6 @@ def list_files(in_path):
     for (dirpath, dirnames, filenames) in os.walk(in_path):
         files.extend(filenames)
         break
-
     return files
 
 
@@ -27,7 +26,7 @@ def _get_files(img_dir):
 
 # %% Test
 
-path = '../fast_style_transfer/TEST_seg/'
+path = '../fast_style_transfer/TEST_training_2ndBatch/'
 
 image_paths = _get_files(path)
 
@@ -42,6 +41,18 @@ for j in range(len(image_paths)):
     white[j] = np.sum(array > 0) / array.size
     black[j] = 1 - white[j]
     
+# List files that are smaller than 256 in any dimension
+# Testing on local machine
+p = image_paths
+for j in range(len(p)):
+    if p[j].split('.')[-1] == 'jpg':
+        im = Image.open(p[j])
+        h, w = im.size
+        if (h < 300) or (w < 300) or (h*w < 90000):
+            print(p[j])
+            print(h)
+            print(w)
+            os.remove(p[j])
 # %% Plot
 plt.figure
 plt.title('Background/foreground area fraction')
