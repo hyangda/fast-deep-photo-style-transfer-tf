@@ -53,7 +53,8 @@ class DeepLabModel(object):
 
     with self.graph.as_default():
       tf.import_graph_def(graph_def, name='')
-
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True # Limit GPU memory growth
     self.sess = tf.Session(graph=self.graph)
 
   def run(self, image):
