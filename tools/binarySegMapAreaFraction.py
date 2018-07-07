@@ -26,7 +26,8 @@ def _get_files(img_dir):
 
 # %% Test
 
-path = '../fast_style_transfer/TEST_training_2ndBatch/'
+path = os.path.abspath('../fast_style_transfer/TEST_training_2ndBatch/')
+print(path)
 
 image_paths = _get_files(path)
 
