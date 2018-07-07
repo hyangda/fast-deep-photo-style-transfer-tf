@@ -9,7 +9,7 @@ import os, errno
 from argparse import ArgumentParser
 import segmentDeepLab as seg
 import fst
-from fast_style_transfer.src.utils import exists
+from src.utils import exists
 from subprocess import call
 
 # Profile slow deep photo style transfer
@@ -145,7 +145,7 @@ def check_opts(opts):
     opts.checkpointName = opts.checkpoint_dir.split('/')[-1].split('.')[0]
     opts.resized_path = os.path.join(opts.resized_dir, opts.inputFileName)
     opts.resized_style_path = os.path.join(opts.resized_dir, opts.styleFileName)
-    opts.seg_path = os.path.join(opts.seg_dir + opts.inputFileName)
+    opts.seg_path = os.path.join(opts.seg_dir, opts.inputFileName)
     opts.seg_style_path = os.path.join(opts.seg_dir, opts.styleFileName)
     
     ensure_folders(input_dir)
@@ -192,12 +192,13 @@ def main():
     if opts.slow:
         print("CALLING SLOW DEEP PHOTO STYLE")
         print("Slow: %s" % opts.slow)
-        cmd = ['python', '-m', 'cProfile', '-o', 'deepPhotoProfile_Adams' \
+        cmd = ['python' \
         , 'deep-photo-styletransfer-tf/deep_photostyle.py', '--content_image_path' \
         , opts.resized_path, '--style_image_path', opts.resized_style_path \
         , '--content_seg_path', opts.seg_path, '--style_seg_path', opts.seg_style_path \
         , '--style_option', '2', '--output_image', opts.out_path \
-        , '--max_iter', '100', '--save_iter', '5', '--lbfgs']
+        , '--max_iter', '1000', '--save_iter', '50', '--lbfgs']
+        print(cmd)
         call(cmd)
     else:
         print("CALLING FAST STYLE TRANSFER")
