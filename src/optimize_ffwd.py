@@ -186,8 +186,8 @@ def optimize(content_targets, style_target, style_seg,
             )
             preds_pre = preds
         else: # Image transformation network prediction
-#            preds = transform.net(X_content/255.0) # Start from transformed version of original image
-            preds = transform.net(X_content) # HY: I think division by 255.0 here is wrong
+            preds = transform.net(X_content/255.0) # Start from transformed version of original image
+#            preds = transform.net(X_content) # HY: I think division by 255.0 here is wrong
             print("PREDS SHAPE")
             print(preds.get_shape)
             preds_pre = vgg.preprocess(preds)
@@ -266,7 +266,8 @@ def optimize(content_targets, style_target, style_seg,
         photo_loss = 0.0
         for j in range(batch_size):
 #            X_content_norm = X_content[j] / 255. # BELOW: If not dividing by 255 inside above, divide here
-            for Vc in tf.unstack((preds[j] / 255.), axis=-1): # Preds has already been normalized by 255. at this point.
+#            for Vc in tf.unstack((preds[j] / 255.), axis=-1): # Preds has already been normalized by 255. at this point.
+            for Vc in tf.unstack(preds[j], axis=-1):
                 Vc_ravel = tf.reshape(tf.transpose(Vc), [-1])
                 Matting = tf.SparseTensor(M_indices[j], M_coo_data[j], (mattingN, mattingN))
                 Lm = tf.matmul(tf.expand_dims(Vc_ravel, 0), tf.sparse_tensor_dense_matmul(Matting, tf.expand_dims(Vc_ravel, -1)))

@@ -9,7 +9,7 @@ import os, errno
 from argparse import ArgumentParser
 import segmentDeepLab as seg
 import fst
-from src.utils import exists
+from src.utils import exists, list_files
 from subprocess import call
 
 # Profile slow deep photo style transfer
@@ -142,7 +142,7 @@ def check_opts(opts):
     opts.checkpointName = opts.checkpoint_dir.split('/')[-1].split('.')[0]
     opts.resized_path = os.path.join(opts.resized_dir, opts.inputFileName)
     opts.resized_style_path = os.path.join(opts.resized_dir, opts.styleFileName)
-    opts.seg_path = os.path.join(opts.seg_dir + opts.inputFileName)
+    opts.seg_path = os.path.join(opts.seg_dir, opts.inputFileName)
     opts.seg_style_path = os.path.join(opts.seg_dir, opts.styleFileName)
     
     ensure_folders(input_dir)
@@ -182,7 +182,6 @@ def main():
         seg.main(opts.deeplab_path, opts.style_path, opts.styleFileName, opts.resized_dir, opts.seg_dir)
         print("CALLING SLOW DEEP PHOTO STYLE")
         print("Slow: %s" % opts.slow)
-        
         # Now call slow deep photo style transfer
         # From Louie Yang's github with minor modifications:
         # https://github.com/LouieYang/deep-photo-styletransfer-tf
@@ -192,6 +191,7 @@ def main():
         , '--content_seg_path', opts.seg_path, '--style_seg_path', opts.seg_style_path \
         , '--style_option', '2', '--output_image', opts.out_path \
         , '--max_iter', '10000', '--save_iter', '100', '--lbfgs']
+        print(cmd)
         call(cmd)
     else:
         print("CALLING FAST STYLE TRANSFER")

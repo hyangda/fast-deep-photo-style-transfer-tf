@@ -53,9 +53,11 @@ class DeepLabModel(object):
 
     with self.graph.as_default():
       tf.import_graph_def(graph_def, name='')
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True # Limit GPU memory growth
-    self.sess = tf.Session(graph=self.graph)
+    # Run on CPU to conserve GPU memory for later operations in style transfer pipeline
+    config = tf.ConfigProto(
+        device_count = {'GPU': 0}
+    )
+    self.sess = tf.Session(graph=self.graph, config=config)
 
   def run(self, image):
     """Runs inference on a single image.
