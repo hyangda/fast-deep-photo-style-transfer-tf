@@ -21,6 +21,8 @@ Transfer styles of objects from one photo into another!
 Example training photo on the left, with reference style photo on the right.
 </p>
 
+### Training photo examples
+
 <p align = 'center'>
 <img src = 'doc/images/train1_orig.jpg' height = '200px'>
 <img src = 'doc/images/train1.jpg' height = '200px'>
@@ -37,6 +39,8 @@ Example training photo on the left, with reference style photo on the right.
 <p align = 'center'>
 Example training photos on the left, with trained stylized photos on the right.
 </p>
+
+### Test photo examples
 
 <p align = 'center'>
 <img src = 'doc/images/test1_orig.jpg' height = '200px'>
@@ -55,14 +59,14 @@ Example training photos on the left, with trained stylized photos on the right.
 Example test photo the network has never seen on the left, with stylized photo on the right.
 </p>
 
-For reference, here is the first image pair using the slow style transfer network.
+### Slow style transfer
 
 <p align = 'center'>
 <img src = 'doc/images/sofa_animation.gif' height = '200px'>
 </p>
 
 <p align = 'center'>
-Example test photo the network has never seen on the left, with stylized photo on the right.
+For reference, here is the first image pair using the slow style transfer network.
 </p>
 
 ## Usage: perform photorealistic style transfer
@@ -121,3 +125,11 @@ python style_fpst.py --style image_style_to_transfer.jpg --style-seg style_image
 `--deeplab-path` Path to trained DeepLabv3 checkpoint. I found the best performance using the Xception backbone pretrained on COCO + VOC, [available here](http://download.tensorflow.org/models/deeplabv3_pascal_train_aug_2018_01_04.tar.gz).
 
 `--matting-dir` Directory to store matting Laplacian matrices computed as an intermediate step. These matrices take a long time to compute (30 to 1 min per image), so if you will be using the same training images to train another style (or make a mistake in training), this saves you tremendous time as the number of training images increase.
+
+## Requirements
+
+This repository was tested using:
+- Python 3.6
+- [TensorFlow and TensorFlow GPU 1.8.0](https://anaconda.org/anaconda/tensorflow-gpu)
+- [MoviePy 0.2.3.3](https://anaconda.org/conda-forge/moviepy)
+- [FFmpeg 3.1.3](https://anaconda.org/conda-forge/ffmpeg)
