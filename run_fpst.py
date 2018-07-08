@@ -9,14 +9,11 @@ import os, errno
 from argparse import ArgumentParser
 import segmentDeepLab as seg
 import fst
-from fast_style_transfer.src.utils import exists
+from src.utils import exists
 from subprocess import call
 
 # Profile slow deep photo style transfer
 import cProfile
-
-# !!! Notes from Matt RE: licenses !!!
-# 3 main licenses: apache, mit, gnu (!!! need to ask for express permissions), add docstring in each function citing repo
 
 # Main script to run fast deep photo style transfer
 
@@ -175,51 +172,36 @@ def main():
     opts = parser.parse_args()
     opts = check_opts(opts)
     
-    # Call DeepLab auto-segmentation
-    #if segment
     
-###################################    seg.main(opts)
-
-    seg.main(opts.deeplab_path, opts.in_path, opts.inputFileName, opts.resized_dir, opts.seg_dir)
-    seg.main(opts.deeplab_path, opts.style_path, opts.styleFileName, opts.resized_dir, opts.seg_dir)
-    # Call Logan Engstrom's fast style transfer
-    #if train:
-    
-    ### !!!call training function here
-    
-    #else:
     
     if opts.slow:
+        # Call DeepLab auto-segmentation
+        # From tensorflow github with minor modifications:
+        # https://github.com/tensorflow/models/tree/master/research/deeplab
+        seg.main(opts.deeplab_path, opts.in_path, opts.inputFileName, opts.resized_dir, opts.seg_dir)
+        seg.main(opts.deeplab_path, opts.style_path, opts.styleFileName, opts.resized_dir, opts.seg_dir)
         print("CALLING SLOW DEEP PHOTO STYLE")
         print("Slow: %s" % opts.slow)
+        
+        # Now call slow deep photo style transfer
+        # From Louie Yang's github with minor modifications:
+        # https://github.com/LouieYang/deep-photo-styletransfer-tf
         cmd = ['python', '-m', 'cProfile', '-o', 'deepPhotoProfile_Adams' \
         , 'deep-photo-styletransfer-tf/deep_photostyle.py', '--content_image_path' \
         , opts.resized_path, '--style_image_path', opts.resized_style_path \
         , '--content_seg_path', opts.seg_path, '--style_seg_path', opts.seg_style_path \
         , '--style_option', '2', '--output_image', opts.out_path \
-        , '--max_iter', '100', '--save_iter', '5', '--lbfgs']
+        , '--max_iter', '10000', '--save_iter', '100', '--lbfgs']
         call(cmd)
     else:
         print("CALLING FAST STYLE TRANSFER")
+        # Use lengstrom's fast style transfer network to perform style transfer using
+        # checkpoint trained for photorealistic style transfer
+        # From Logan Engstrom's github with major modifications:
+        # https://github.com/lengstrom/fast-style-transfer
         fst.main(opts)
-#        python deep_photostyle.py --content_image_path ./test/input/resized_im.jpg
-#        --style_image_path ./test/style/resized_leopard.jpg --content_seg_path
-#        ./test/seg/seg_map.jpg --style_seg_path ./test/seg/seg_leopard.jpg --style_option 2
 
     call(['open' , opts.out_path])
-    
-    #python evaluate.py --checkpoint path/to/style/model.ckpt \
-    #  --in-path dir/of/test/imgs/ \
-    #  --out-path dir/for/results/
-    
-    # !python segmentDeepLab.py --input image2.jpg --style leopard.jpg
-    # Segment input photo and store
-        
-    # Style photo
-        
-    # Segment style photo and store
-        
-    # Feed input, segmap, style photo, segmap into FPST
     
 if __name__ == '__main__':
     main()
