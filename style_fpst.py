@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from src.utils import save_img, get_img, exists, list_files
 import evaluate
 
+# Default values from Logan Engstrom's implementation (https://github.com/lengstrom/fast-style-transfer)
 CONTENT_WEIGHT = 7.5e0
 STYLE_WEIGHT = 1e2
 TV_WEIGHT = 2e2
@@ -126,7 +127,6 @@ def check_opts(opts):
     exists(opts.checkpoint_dir, "checkpoint dir not found!")
     exists(opts.style, "style path not found!")
     exists(opts.train_path, "train path not found!")
-#    exists(opts.train_seg_dir, "training segmentation directory not found!")
     if opts.test or opts.test_dir:
         exists(opts.test, "test img not found!")
         exists(opts.test_dir, "test directory not found!")
@@ -149,8 +149,8 @@ def main():
     parser = build_parser()
     options = parser.parse_args()
     check_opts(options)
-
-    # TO DO: DEEPLAB SEGMENT STYLE IMAGE IF THIS DOES NOT EXIST
+    
+    # Load style and content images
     style_target = get_img(options.style)
     style_seg = get_img(options.style_seg)
     if not options.slow:
@@ -176,10 +176,9 @@ def main():
     args = [
         content_targets, # Batch image paths
         style_target, # Reference style *image*
-#        options.train_seg_path, # Batch image segmentation folder
         style_seg, # Reference style segmentation map *image*
-        options.content_weight, # This became ugly over time
-        options.style_weight, # TO DO: pass in all options and parse in optimize_ffwd.py
+        options.content_weight,
+        options.style_weight,
         options.tv_weight,
         options.photo_weight,
         options.vgg_path,

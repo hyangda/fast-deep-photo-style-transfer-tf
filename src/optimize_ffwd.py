@@ -6,13 +6,6 @@ import transform
 from utils import get_img
 from closed_form_matting import getLaplacian
 from random import shuffle
-
-# Hack to load in segmentDeepLab with testing directory structure
-# TO DO: Move segmentDeepLab into src?
-currentdir = os.path.dirname(os.path.abspath(__file__))
-parentdir = os.path.dirname(os.path.dirname(currentdir))
-sys.path.insert(0,parentdir) 
-
 import segmentDeepLab as seg
 
 """
@@ -26,9 +19,6 @@ Luan et al. (2017):
     with modifications from Louie Yang's TF Deep Photo Style Transfer:
         https://github.com/LouieYang/deep-photo-styletransfer-tf
 """
-
-# Enable eager execution and save to file. May not be necessary with tensorboard.
-#tf.enable_eager_execution()
 
 STYLE_LAYERS = ('relu1_1', 'relu2_1', 'relu3_1', 'relu4_1', 'relu5_1')
 CONTENT_LAYER = 'relu4_2'
@@ -50,7 +40,7 @@ def optimize(content_targets, style_target, style_seg,
     
     # Function to load segmentation masks
     """ TF implementation modified from Louie Yang's deep photo style transfer. """
-    def load_seg(image_seg, new_height, new_width): #, content_shape, style_shape): # Take in TF objects for segmentation maps
+    def load_seg(image_seg, new_height, new_width): # Take in TF objects for segmentation maps
         color_codes = ['BLUE', 'GREEN', 'BLACK', 'WHITE', 'RED', 'YELLOW', 'GREY', 'LIGHT_BLUE', 'PURPLE']
         def _extract_mask(seg, color_str):
             if color_str == "BLUE":
@@ -92,21 +82,14 @@ def optimize(content_targets, style_target, style_seg,
                 mask_r = tf.cast((seg[:, :, :, 0] > 0.9), tf.int32)
                 mask_g = tf.cast((seg[:, :, :, 1] < 0.1), tf.int32)
                 mask_b = tf.cast((seg[:, :, :, 2] > 0.9), tf.int32)
-                # HY DEBUG
-                print('MASK R')
-                print(mask_r)
             return tf.multiply(tf.multiply(mask_r, mask_g), mask_b)
 
         # TF resize input image [bs, height, width, channels]
-        # NOTE TO SELF: MAKE SURE THIS IS NORMALIZED BY 255
         image_seg_resized = tf.image.resize_bilinear(image_seg, (new_height, new_width))
-        print('IMG RESIZED')
-        print(image_seg_resized)
         image_content_masks = []
         for i in range(len(color_codes)):
             # List of image masks / segmentation channel, in [bs, h, w, c(img channel)] format
             image_content_masks.append(tf.expand_dims(_extract_mask(image_seg_resized, color_codes[i]), -1))
-            print(_extract_mask(image_seg_resized, color_codes[i]))
         return image_content_masks
 
     # Define batch sizes and input content images
@@ -130,8 +113,9 @@ def optimize(content_targets, style_target, style_seg,
     else:
         raise ValueError('Don\'t know what nonzero values should be for this size.')
     
-    indices_shape = (batch_size, nonZeros, 2) # Temporary hardcode--dim doesn't change for 256x256 images
-    coo_shape = (batch_size, nonZeros) # Temporary hardcode
+    # Define shapes for TF data structures
+    indices_shape = (batch_size, nonZeros, 2) # Dimension never changes for 256x256 images (constrained by resizing at input to net)
+    coo_shape = (batch_size, nonZeros)
     mattingN = resize_height * resize_width
     
     # precompute style features for reference style image
@@ -140,34 +124,24 @@ def optimize(content_targets, style_target, style_seg,
         style_image_pre = vgg.preprocess(style_image)
         net = vgg.net(vgg_path, style_image_pre)
         style_pre = np.array([style_target]) # This was called by get_image(), is a uint8 image
-        # Below loop computes G_l[S], can compute masks M_l,c[S] here.
-        style_masks = load_seg(np.expand_dims((style_seg / 255.), 0), style_shape[1], style_shape[2]) # Normalized by 255, check.
-        print('STYLE MASKS IN TF PRECOMPUTE')
-        print(style_masks)
+        # Below loop computes G_l[S], so we can compute masks M_l,c[S] here.
+        style_masks = load_seg(np.expand_dims((style_seg / 255.), 0), style_shape[1], style_shape[2]) # Normalized by 255 is what we want
         for layer in STYLE_LAYERS:
             features = net[layer].eval(feed_dict={style_image:style_pre})
-            # HY DEBUG
-            # INTEND TO MULTIPLY BY STYLE MASK HERE
-            # NEED TO LOOP ON c per mask channel HERE
             bs, height, width, filters = features.shape
             size = features.size
             style_features[layer] = [None] * len(style_masks) # Initialize one Gram Matrix per seg mask channel per feature layer
             for c in range(len(style_masks)): # Downscale and mask feature layers
-                # F_l,c[S] = F_l[S] .* M_l,c[S] <-- this needs to be computed in precompute section on reference style image
                 style_mask_resized = tf.image.resize_bilinear(style_masks[c], (height,width))
                 feats = tf.reshape(tf.multiply(features, style_mask_resized), (bs, height * width, filters))
                 feats_T = tf.transpose(feats, perm=[0,2,1])
                 style_features[layer][c] = tf.matmul(feats_T, feats).eval(feed_dict={style_image:style_pre}) / size
-            # Old NP implementation without seg maps
-#            features = np.reshape(features, (-1, features.shape[3]))
-#            gram = np.matmul(features.T, features) / features.size
-#            style_features[layer] = gram # This is G_l[S]
     with tf.Graph().as_default(), tf.Session() as sess:
         # Content images in batch
         X_content = tf.placeholder(tf.float32, shape=batch_shape, name="X_content")
         X_pre = vgg.preprocess(X_content)
         
-        # Segmentation masks -- HY PROBABLY DONT NEED THIS NOW THAT WE HAVE TF SEG MAP
+        # Segmentation masks
         Seg_content = tf.placeholder(tf.float32, shape=batch_shape, name="Seg_content")
         
         # Load in Matting Laplacian variables
@@ -187,9 +161,6 @@ def optimize(content_targets, style_target, style_seg,
             preds_pre = preds
         else: # Image transformation network prediction
             preds = transform.net(X_content/255.0) # Start from transformed version of original image
-#            preds = transform.net(X_content) # HY: I think division by 255.0 here is wrong
-            print("PREDS SHAPE")
-            print(preds.get_shape)
             preds_pre = vgg.preprocess(preds)
     
         net = vgg.net(vgg_path, preds_pre) # Preprocessed composite image
@@ -207,9 +178,6 @@ def optimize(content_targets, style_target, style_seg,
         )
         layer = net[CONTENT_LAYER]
         bs, height, width, filters = map(lambda i:i.value,layer.get_shape())
-        # HY DEBUG
-        print("PREDS_PRE")
-        print(bs, height, width, filters)
         
         # Compute style losses G_l[O] for output composite image [O]
         style_losses = []
@@ -217,16 +185,11 @@ def optimize(content_targets, style_target, style_seg,
             layer = net[style_layer] # F[O]
             bs, height, width, filters = map(lambda i:i.value,layer.get_shape())
             size = height * width * filters
-            # Need to downscale segmap here
-            # F_l,c[O] = F_l[O] .* M_l,c[I] <-- we are here
-            # F_l,c[S] = F_l[S] .* M_l,c[S] <-- this needs to be computed in precompute section before
-            print('STYLE MASK LOOP')
             style_loss_per_mask = 0.0
             input_masks = load_seg((Seg_content / 255.), height, width)
             for c in range(len(style_masks)): # Downscale and mask feature layers
-                # F_l,c[O] = F_l[O] .* M_l,c[I] <-- we are here
+                # F_l,c[O] = F_l[O] .* M_l,c[I] <-- now we are here in Luan et al. [2017]
                 input_mask_resized = tf.image.resize_bilinear(input_masks[c], (height,width))
-#                style_mask_resized = tf.image.resize_bilinear(style_masks[c], (height, width))
                 feats = tf.reshape(tf.multiply(layer, input_mask_resized), (bs, height * width, filters))
                 feats_T = tf.transpose(feats, perm=[0,2,1])
                 grams = tf.matmul(feats_T, feats) / size # This is G_l,c[O], feed in input masks here M_l,c[I], and and loop over I input images
@@ -234,18 +197,7 @@ def optimize(content_targets, style_target, style_seg,
                 style_loss_per_mask += 2 * tf.nn.l2_loss(grams - style_gram)/style_gram.size
                 if (c == 3) and (style_layer == 'relu1_1'): # White, foreground
                     tb_masks = input_mask_resized
-                # HY TO DO: NORMALIZE BY MASK AVERAGE [THIS GIVES WEIGHTED AVERAGE OF MASKED IMAGES]
-#            feats = tf.reshape(layer, (bs, height * width, filters))
-#            feats_T = tf.transpose(feats, perm=[0,2,1])
-#            grams = tf.matmul(feats_T, feats) / size # This is G_l[O], feed in input masks here M_l,c[I], and and loop over I input images
-#            style_gram = style_features[style_layer] # This is G_l[S], (Gram matrix computed in place), compute M_l,c[I] previously
-            # within the append statement below is the old style loss function
-#            style_losses.append(2 * tf.nn.l2_loss(grams - style_gram)/style_gram.size) # length of style layers
             style_losses.append(style_loss_per_mask)
-            # HY DEBUG
-            print(style_layer)
-            print("Style layer: bs, height, width, filters")
-            print(bs, height, width, filters)
         tf.summary.image('Batch_Masks', tb_masks, batch_size)
     
         style_loss = style_weight * functools.reduce(tf.add, style_losses) / batch_size
@@ -258,15 +210,12 @@ def optimize(content_targets, style_target, style_seg,
         tv_loss = tv_weight*2*(x_tv/tv_x_size + y_tv/tv_y_size)/batch_size
 
         # Photorealistic regularization term
-        # NOTE TO SELF: Add flag here to include photorealism regularization or not
         """ Modified from affine_loss in photo_style.py from
         LouieYang's Deep Photo Style Transfer
         https://github.com/LouieYang/deep-photo-styletransfer-tf
         """
         photo_loss = 0.0
         for j in range(batch_size):
-#            X_content_norm = X_content[j] / 255. # BELOW: If not dividing by 255 inside above, divide here
-#            for Vc in tf.unstack((preds[j] / 255.), axis=-1): # Preds has already been normalized by 255. at this point.
             for Vc in tf.unstack(preds[j], axis=-1):
                 Vc_ravel = tf.reshape(tf.transpose(Vc), [-1])
                 Matting = tf.SparseTensor(M_indices[j], M_coo_data[j], (mattingN, mattingN))
@@ -278,7 +227,6 @@ def optimize(content_targets, style_target, style_seg,
 
         # Tensorboard variables
         tf.summary.scalar('total_loss', loss[0][0])
-        print(tf.summary)
         tf.summary.scalar('style_loss', style_loss)
         tf.summary.scalar('content_loss', content_loss)
         tf.summary.scalar('tv_loss', tv_loss)
@@ -289,7 +237,6 @@ def optimize(content_targets, style_target, style_seg,
         train_step = trainer.minimize(loss)
         tf.summary.scalar('learning_rate', trainer._lr)
         mergedSummary = tf.summary.merge_all()
-        print(mergedSummary)
         sess.run(tf.global_variables_initializer())
         import random
         uid = random.randint(1, 100)
@@ -317,7 +264,7 @@ def optimize(content_targets, style_target, style_seg,
                    if not os.path.exists(os.path.join(seg_dir, img_fname)):
                        seg.main(deeplab_path, img_p, img_fname, resized_dir, seg_dir)
                    Seg_batch[j] = get_img(os.path.join(seg_dir, img_fname), (resize_height,resize_width,3)).astype(np.float32)
-                   # TO DO STORE THIS STUFF!!!
+                   # Store Matting Laplacians to speed up future training sessions
                    if not os.path.exists(os.path.join(matting_dir, img_fname + '_indices.npy')):
                        indices[j], coo_data[j] = getLaplacian(X_batch[j]) # Compute Matting Laplacian
                        np.save(os.path.join(matting_dir, img_fname + '_indices.npy'), indices[j])
@@ -326,8 +273,6 @@ def optimize(content_targets, style_target, style_seg,
                        indices[j] = np.load(os.path.join(matting_dir, img_fname + '_indices.npy'))
                        coo_data[j] = np.load(os.path.join(matting_dir, img_fname + '_coo.npy'))
                            
-                           
-                
                 iterations += 1
                 assert X_batch.shape[0] == batch_size
     
@@ -361,7 +306,6 @@ def optimize(content_targets, style_target, style_seg,
                     _style_loss,_content_loss,_tv_loss, _photo_loss, _loss, _preds, _summaryResult = tup
                     losses = (_style_loss, _content_loss, _tv_loss, _photo_loss, _loss)
 
-                    print(mergedSummary)
                     train_writer.add_summary(_summaryResult, iterations)
                     if slow:
                        _preds = vgg.unprocess(_preds)

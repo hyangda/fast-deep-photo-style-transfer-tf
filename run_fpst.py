@@ -7,13 +7,10 @@ Created on Mon Jun 11 13:22:34 2018
 """
 import os, errno
 from argparse import ArgumentParser
-import segmentDeepLab as seg
+import src.segmentDeepLab as seg
 import fst
 from src.utils import exists, list_files
 from subprocess import call
-
-# Profile slow deep photo style transfer
-import cProfile
 
 # Main script to run fast deep photo style transfer
 
@@ -31,39 +28,6 @@ VGG_PATH = 'fast-style-transfer-tf/data/imagenet-vgg-verydeep-19.mat' # point to
 # FST options
 BATCH_SIZE = 4
 DEVICE = '/gpu:0'
-
-## Parser function
-#def build_parser():
-#    """Parser function"""
-#    parser = ArgumentParser()
-#    parser.add_argument('--checkpoint-dir', type=str,
-#                        dest='checkpoint_dir', help='dir to save checkpoint in',
-#                        metavar='CHECKPOINT_DIR', required=True)
-#
-#    parser.add_argument('--style', type=str,
-#                        dest='style', help='style image path',
-#                        metavar='STYLE', required=True)
-#
-#    parser.add_argument('--train-path', type=str,
-#                        dest='train_path', help='path to training images folder',
-#                        metavar='TRAIN_PATH', default=TRAIN_PATH)
-#
-#    parser.add_argument('--indir', type=str,
-#                        dest='in_dir', help='Input image path',
-#                        metavar='TEST', default=False)
-#
-#    parser.add_argument('--outdir', type=str,
-#                        dest='out_dir', help='Output styled image save dir',
-#                        metavar='TEST_DIR', default=False)
-#
-#    parser.add_argument('--vgg-path', type=str,
-#                        dest='vgg_path',
-#                        help='path to VGG19 network (default %(default)s)',
-#                        metavar='VGG_PATH', default=VGG_PATH)
-#
-#    return parser
-
-#python run_fpst.py --in-path inputPhotos/insightCorner.jpg --style-path stylePhotos/leopard.jpg --checkpoint-path checkpoints/udnie.ckpt
 
 # %% Parser function
 def build_parser():
@@ -100,7 +64,7 @@ def build_parser():
 
 # Fast style transfer
     parser.add_argument('--checkpoint-path', type=str,
-                        dest='checkpoint_dir', # TEMPORARILY MAINTAIN FST NAMING CONVENTION
+                        dest='checkpoint_dir',
                         help='Directory containing checkpoint files',
                         metavar='CHECKPOINT_DIR', required=True)
 
@@ -137,8 +101,8 @@ def check_opts(opts):
     opts.seg_dir = os.path.abspath(opts.seg_dir)
     opts.deeplab_path = os.path.abspath(opts.deeplab_path)
     
-    opts.inputFileName = opts.in_path.split('/')[-1]#.split('.')[0]
-    opts.styleFileName = opts.style_path.split('/')[-1]#.split('.')[0]
+    opts.inputFileName = opts.in_path.split('/')[-1]
+    opts.styleFileName = opts.style_path.split('/')[-1]
     opts.checkpointName = opts.checkpoint_dir.split('/')[-1].split('.')[0]
     opts.resized_path = os.path.join(opts.resized_dir, opts.inputFileName)
     opts.resized_style_path = os.path.join(opts.resized_dir, opts.styleFileName)
@@ -150,8 +114,7 @@ def check_opts(opts):
     ensure_folders(style_dir)
     ensure_folders(seg_dir)
     ensure_folders(output_dir)
-    #
-    # !!! IF NAMES MATCH, THROW EXCEPTION !!!
+    # !!! IF NAMES MATCH, THROW EXCEPTION TO PREVENT OVERWRITING !!!
     if opts.inputFileName == opts.styleFileName:
         raise ValueError('Input and style file names cannot be the same')
         
@@ -166,13 +129,11 @@ def _get_files(img_dir):
     files = list_files(img_dir)
     return [os.path.join(img_dir,x) for x in files]
 
-# %% Pipeline for FST ONLY !!!!!!!!!!!!!!
+# %% Full pipeline for slow deep photo style transfer or fast photo style transfer
 def main():
     parser = build_parser()
     opts = parser.parse_args()
     opts = check_opts(opts)
-    
-    
     
     if opts.slow:
         # Call DeepLab auto-segmentation
@@ -182,6 +143,7 @@ def main():
         seg.main(opts.deeplab_path, opts.style_path, opts.styleFileName, opts.resized_dir, opts.seg_dir)
         print("CALLING SLOW DEEP PHOTO STYLE")
         print("Slow: %s" % opts.slow)
+        
         # Now call slow deep photo style transfer
         # From Louie Yang's github with minor modifications:
         # https://github.com/LouieYang/deep-photo-styletransfer-tf
